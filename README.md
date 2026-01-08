@@ -34,6 +34,28 @@ Aplicativo de controle financeiro pessoal **100% Offline-first**, moderno e intu
     ```
 4.  Acesse `http://localhost:5173`
 
+## 💻 Versão Desktop (Electron)
+
+Você pode transformar este projeto em um aplicativo nativo para Windows.
+
+### Rodar em modo de desenvolvimento (Hot Reload)
+
+Abre uma janela do Electron com as ferramentas de desenvolvedor ativadas:
+
+```bash
+npm run electron:dev
+```
+
+### Gerar executável (Instalador)
+
+Gera o instalador `.exe` na pasta `dist`:
+
+```bash
+npm run electron:build
+```
+
+O arquivo final estará em: `dist/Progressão Financeira Setup X.X.X.exe`
+
 ## 📂 Estrutura do Projeto
 
 - `src/lib/db`: Esquema do banco de dados e repositórios.
