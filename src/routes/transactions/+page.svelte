@@ -23,11 +23,30 @@
   let categories = liveQuery(() => CategoryRepository.getAll());
 
   $effect(() => {
-    const observable = liveQuery(() =>
-      TransactionRepository.getFiltered($selectedDate.year, $selectedDate.month)
-    );
-    const subscription = observable.subscribe((res) => (transactions = res));
-    return () => subscription.unsubscribe();
+    // [DEBUG] Monitorando mudança de data
+    console.log("[DEBUG $effect] Date changed:", $selectedDate);
+
+    // Capturar valores para garantir reatividade
+    const currentYear = $selectedDate.year;
+    const currentMonth = $selectedDate.month;
+
+    const observable = liveQuery(() => {
+      console.log("[DEBUG liveQuery] Executing query for:", {
+        currentYear,
+        currentMonth,
+      });
+      return TransactionRepository.getFiltered(currentYear, currentMonth);
+    });
+
+    const subscription = observable.subscribe((res) => {
+      console.log("[DEBUG subscribe] Received transactions:", res.length);
+      transactions = res;
+    });
+
+    return () => {
+      console.log("[DEBUG $effect] Cleanup");
+      subscription.unsubscribe();
+    };
   });
 
   let isModalOpen = $state(false);
