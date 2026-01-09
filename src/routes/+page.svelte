@@ -69,7 +69,7 @@
 
   <!-- Summary Cards -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div class="card bg-white dark:bg-slate-900 overflow-hidden relative group">
+    <div class="card overflow-hidden relative group">
       <div
         class="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl group-hover:bg-green-500/20 transition-all"
       ></div>
@@ -88,7 +88,7 @@
       </div>
     </div>
 
-    <div class="card bg-white dark:bg-slate-900 overflow-hidden relative group">
+    <div class="card dark:bg-slate-900 overflow-hidden relative group">
       <div
         class="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl group-hover:bg-red-500/20 transition-all"
       ></div>
@@ -123,13 +123,17 @@
       </div>
     </div>
 
-    <div class="card bg-primary-600 text-white overflow-hidden relative group">
+    <div
+      class="card {summary?.balance < 0
+        ? 'bg-red-600'
+        : 'bg-primary-600'} text-white overflow-hidden relative group"
+    >
       <div
-        class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"
+        class="absolute -right-4 -top-4 w-24 h-24 rounded-full blur-2xl transition-all"
       ></div>
       <div class="flex items-center gap-4">
         <div
-          class="w-12 h-12 rounded-2xl bg-white/20 text-white flex items-center justify-center"
+          class="w-12 h-12 rounded-2xl text-white flex items-center justify-center"
         >
           <Wallet size={24} />
         </div>
@@ -154,18 +158,26 @@
       </div>
       <div class="h-64 flex items-end justify-between gap-2 px-2">
         {#each yearlySeries as month, i}
-          <div class="flex-1 flex flex-col items-center gap-2 group relative">
+          <div class="flex-1 flex flex-col justify-end items-center gap-2 group relative h-full">
             <div
-              class="w-full bg-slate-100 dark:bg-slate-800 rounded-t-lg transition-all duration-500 group-hover:bg-primary-500 overflow-hidden flex flex-col justify-end"
+              class="w-full rounded-t-lg transition-all duration-500 overflow-hidden flex flex-col justify-end {month.incomes -
+                month.expenses <
+              0
+                ? 'bg-red-500 group-hover:bg-red-600'
+                : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-500'}"
               style="height: {Math.max(
-                10,
+                0,
                 (month.expenses /
                   (Math.max(...yearlySeries.map((m) => m.expenses)) || 1)) *
                   100
               )}%"
             >
               <div
-                class="w-full bg-primary-600 h-full opacity-0 group-hover:opacity-100 transition-opacity"
+                class="w-full h-full opacity-80 group-hover:opacity-100 transition-opacity {month.incomes -
+                  month.expenses <
+                0
+                  ? 'bg-red-600'
+                  : 'bg-primary-600'}"
               ></div>
             </div>
             <span class="text-[10px] font-medium text-slate-400 uppercase"
@@ -186,7 +198,7 @@
 
     <!-- Insights side column -->
     <div class="space-y-6">
-      <div class="card bg-white dark:bg-slate-900">
+      <div class="card">
         <h3 class="text-lg font-bold mb-4">Insights Rápidos</h3>
         <div class="space-y-4">
           <div class="flex items-center justify-between">

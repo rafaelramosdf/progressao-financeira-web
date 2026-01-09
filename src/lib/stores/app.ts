@@ -7,9 +7,7 @@ export const selectedDate = writable({
   month: now.getMonth() // 0-11
 });
 
-export const theme = writable<'light' | 'dark'>(
-  typeof window !== 'undefined' ? (localStorage.getItem('theme') as any) || 'light' : 'light'
-);
+export const theme = writable<'light' | 'dark'>('dark');
 
 theme.subscribe((val) => {
   if (typeof window !== 'undefined') {

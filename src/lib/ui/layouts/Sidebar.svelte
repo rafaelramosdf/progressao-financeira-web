@@ -20,7 +20,7 @@
 </script>
 
 <aside class={cn(
-  "bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex flex-col",
+  "sidebar bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex flex-col",
   collapsed ? "w-20" : "w-64"
 )}>
   <div class="p-6 flex items-center justify-between">

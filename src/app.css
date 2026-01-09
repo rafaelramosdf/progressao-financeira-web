@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-primary-50: #eff6ff;
@@ -41,9 +42,30 @@ body {
   @apply bg-slate-50 text-slate-900 transition-colors duration-200;
 }
 
-.dark body {
-  @apply bg-slate-950 text-slate-100;
-  color: #f8fafc;
+/* Dark mode override for body */
+/* Dark mode override for body */
+/* redundancy removed, handled above */
+
+/* Dark mode override for cards */
+/* Dark mode override for cards (excluding primary/red highlighted cards) */
+/* Dark mode override for cards (excluding primary/red highlighted cards) */
+html.dark .card:not(.bg-primary-600):not(.bg-red-600) {
+  background-color: #0f172a; /* slate-900 */
+  border-color: #1e293b; /* slate-800 */
+  color: #f1f5f9; /* slate-100 */
+}
+
+/* Dark mode overrides for layout elements */
+html.dark .sidebar,
+html.dark .topbar {
+  background-color: #0f172a; /* slate-900 */
+  border-color: #1e293b; /* slate-800 */
+}
+
+html.dark body,
+html.dark .main-wrapper {
+  background-color: #020617; /* slate-950 */
+  color: #f1f5f9;
 }
 
 @layer components {

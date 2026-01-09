@@ -41,7 +41,7 @@
 </script>
 
 <header
-  class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between"
+  class="topbar bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between"
 >
   <div class="flex items-center gap-4">
     <div
@@ -72,15 +72,6 @@
   </div>
 
   <div class="flex items-center gap-4">
-    <button
-      onclick={() => theme.update((t) => (t === "light" ? "dark" : "light"))}
-      class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:scale-105 transition-all"
-    >
-      {#if $theme === "light"}
-        <Moon size={20} />
-      {:else}
-        <Sun size={20} />
-      {/if}
-    </button>
+    <!-- Theme toggle removed as Dark Mode is now enforced -->
   </div>
 </header>

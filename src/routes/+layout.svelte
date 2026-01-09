@@ -14,7 +14,7 @@
   });
 </script>
 
-<div class="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+<div class="main-wrapper flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
   <Sidebar />
 
   <div class="flex-1 flex flex-col overflow-hidden">
