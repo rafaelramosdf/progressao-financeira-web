@@ -49,6 +49,10 @@
       .slice(0, 3)
   );
 
+  const maxYearlyExpenses = $derived(
+    Math.max(...yearlySeries.map((m) => m.expenses), 0) || 1
+  );
+
   const avgDailySpent = $derived(
     summary
       ? summary.totalExpenses /
@@ -158,7 +162,9 @@
       </div>
       <div class="h-64 flex items-end justify-between gap-2 px-2">
         {#each yearlySeries as month, i}
-          <div class="flex-1 flex flex-col justify-end items-center gap-2 group relative h-full">
+          <div
+            class="flex-1 flex flex-col justify-end items-center gap-2 group relative h-full"
+          >
             <div
               class="w-full rounded-t-lg transition-all duration-500 overflow-hidden flex flex-col justify-end {month.incomes -
                 month.expenses <
@@ -167,9 +173,7 @@
                 : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-500'}"
               style="height: {Math.max(
                 0,
-                (month.expenses /
-                  (Math.max(...yearlySeries.map((m) => m.expenses)) || 1)) *
-                  100
+                (month.expenses / maxYearlyExpenses) * 100
               )}%"
             >
               <div

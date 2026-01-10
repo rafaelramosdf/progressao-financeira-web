@@ -9,8 +9,8 @@ export class FinanceDB extends Dexie {
 
   constructor() {
     super('FinanceDB');
-    this.version(1).stores({
-      transactions: '++id, date, categoryId, type, [date+type]',
+    this.version(2).stores({
+      transactions: '++id, date, categoryId, type, paid, [date+type]',
       categories: '++id, name',
       budgets: '++id, [year+month+categoryId]',
       recurringRules: '++id, active'

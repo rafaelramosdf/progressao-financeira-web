@@ -15,6 +15,7 @@ export interface Transaction {
   categoryId: string;
   description?: string;
   tags?: string[];
+  paid: boolean;
   createdAt: number;
   updatedAt: number;
 }

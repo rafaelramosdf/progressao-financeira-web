@@ -36,37 +36,88 @@
   });
 
   let isModalOpen = $state(false);
+  let editingRuleId = $state<string | null>(null);
   let formType = $state<"income" | "expense">("expense");
   let formAmount = $state<number | string>("");
   let formCategoryId = $state("");
   let formDay = $state(1);
   let formDesc = $state("");
 
-  async function handleAdd() {
+  function openCreate() {
+    editingRuleId = null;
+    formType = "expense";
+    formAmount = "";
+    formCategoryId = "";
+    formDay = 1;
+    formDesc = "";
+    isModalOpen = true;
+  }
+
+  function openEdit(rule: RecurringRule) {
+    editingRuleId = rule.id!;
+    formType = rule.type;
+    formAmount = rule.amount / 100;
+    formCategoryId = rule.categoryId;
+    formDay = rule.dayOfMonth;
+    formDesc = rule.description || "";
+    isModalOpen = true;
+  }
+
+  async function handleSave() {
     if (!formAmount || !formCategoryId) return;
     try {
-      await RecurringRepository.add({
+      const ruleData = {
         type: formType,
         amount: Math.round(Number(formAmount) * 100),
         categoryId: formCategoryId,
         dayOfMonth: formDay,
         description: formDesc,
         active: true,
-      });
+      };
+
+      if (editingRuleId) {
+        await RecurringRepository.update(editingRuleId, ruleData);
+      } else {
+        await RecurringRepository.add(ruleData);
+      }
       isModalOpen = false;
     } catch (e) {
-      console.error("Error adding recurring rule", e);
+      console.error("Error saving recurring rule", e);
     }
   }
 
   async function toggleActive(rule: RecurringRule) {
     if (!rule.id) return;
-    await RecurringRepository.update(rule.id, { active: !rule.active });
+
+    if (rule.active) {
+      if (
+        confirm(
+          `Desativar esta regra irá EXCLUIR todos os seus lançamentos gerados para o ano de ${$selectedDate.year}. Deseja continuar?`
+        )
+      ) {
+        await RecurringService.deleteForYear(
+          $selectedDate.year,
+          rule.description || ""
+        );
+        await RecurringRepository.update(rule.id, { active: false });
+      }
+    } else {
+      await RecurringRepository.update(rule.id, { active: true });
+    }
   }
 
-  async function deleteRule(id: string) {
-    if (confirm("Remover esta regra recorrente?")) {
-      await RecurringRepository.delete(id);
+  async function deleteRule(rule: RecurringRule) {
+    if (!rule.id) return;
+    if (
+      confirm(
+        `Excluir esta regra irá remover todos os seus lançamentos gerados para o ano de ${$selectedDate.year}. Deseja continuar?`
+      )
+    ) {
+      await RecurringService.deleteForYear(
+        $selectedDate.year,
+        rule.description || ""
+      );
+      await RecurringRepository.delete(rule.id);
     }
   }
 
@@ -76,11 +127,8 @@
   async function generate() {
     generating = true;
     try {
-      const count = await RecurringService.generateForMonth(
-        $selectedDate.year,
-        $selectedDate.month
-      );
-      message = `${count} lançamentos gerados com sucesso!`;
+      const count = await RecurringService.generateForYear($selectedDate.year);
+      message = `${count} lançamentos processados (criados ou atualizados)!`;
       setTimeout(() => (message = ""), 5000);
     } catch (e) {
       console.error("Error generating transactions", e);
@@ -103,10 +151,10 @@
         class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-md active:scale-95 disabled:opacity-50"
       >
         <Play size={18} />
-        {generating ? "Processando..." : "Gerar para o Mês"}
+        {generating ? "Processando..." : "Gerar/Atualizar para o Ano"}
       </button>
       <button
-        onclick={() => (isModalOpen = true)}
+        onclick={openCreate}
         class="btn-primary flex items-center gap-2 shadow-md active:scale-95"
       >
         <Plus size={18} />
@@ -158,7 +206,28 @@
               <Power size={18} />
             </button>
             <button
-              onclick={() => deleteRule(rule.id!)}
+              onclick={() => openEdit(rule)}
+              class="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+              title="Editar"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-pencil"
+                ><path
+                  d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+                /><path d="m15 5 4 4" /></svg
+              >
+            </button>
+            <button
+              onclick={() => deleteRule(rule)}
               class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
               title="Excluir"
             >
@@ -219,7 +288,9 @@
       <div
         class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between"
       >
-        <h2 class="text-xl font-bold">Nova Regra de Recorrência</h2>
+        <h2 class="text-xl font-bold">
+          {editingRuleId ? "Editar Regra" : "Nova Regra"} de Recorrência
+        </h2>
         <button
           onclick={() => (isModalOpen = false)}
           class="text-slate-400 hover:text-slate-600 p-1"
@@ -231,7 +302,7 @@
       <form
         onsubmit={(e) => {
           e.preventDefault();
-          handleAdd();
+          handleSave();
         }}
         class="p-6 space-y-4"
       >
@@ -319,8 +390,9 @@
           <button
             type="submit"
             class="flex-1 btn-primary shadow-lg shadow-primary-500/20"
-            >Criar Regra</button
           >
+            {editingRuleId ? "Salvar Alterações" : "Criar Regra"}
+          </button>
         </div>
       </form>
     </div>

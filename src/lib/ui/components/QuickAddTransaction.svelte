@@ -36,6 +36,7 @@
       amount: Math.round(Number(formAmount) * 100),
       categoryId: formCategoryId,
       description: formDescription,
+      paid: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -158,7 +159,7 @@
           <button
             type="button"
             onclick={() => (isModalOpen = false)}
-            class="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+            class="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >Cancelar</button
           >
           <button type="submit" class="flex-1 btn-primary">

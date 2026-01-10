@@ -57,7 +57,9 @@
   let formType = $state<"income" | "expense">("expense");
   let formAmount = $state<number | string>("");
   let formCategoryId = $state("");
+
   let formDescription = $state("");
+  let formPaid = $state(true);
 
   function openCreate() {
     editingTransaction = null;
@@ -66,6 +68,7 @@
     formAmount = "";
     formCategoryId = $categories ? $categories[0]?.id || "" : "";
     formDescription = "";
+    formPaid = true;
     isModalOpen = true;
   }
 
@@ -76,6 +79,7 @@
     formAmount = tx.amount / 100;
     formCategoryId = tx.categoryId;
     formDescription = tx.description || "";
+    formPaid = tx.paid ?? true;
     isModalOpen = true;
   }
 
@@ -88,6 +92,7 @@
       amount: Math.round(Number(formAmount) * 100),
       categoryId: formCategoryId,
       description: formDescription,
+      paid: formPaid,
       createdAt: editingTransaction?.createdAt || Date.now(),
       updatedAt: Date.now(),
     };
@@ -185,6 +190,10 @@
             >Valor</th
           >
           <th
+            class="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-center"
+            >Pago</th
+          >
+          <th
             class="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-right"
             >Ações</th
           >
@@ -228,6 +237,25 @@
               )}
             >
               {tx.type === "expense" ? "-" : ""}{formatCurrency(tx.amount)}
+            </td>
+            <td class="px-6 py-4 text-center">
+              <button
+                onclick={() =>
+                  TransactionRepository.update(tx.id!, { paid: !tx.paid })}
+                class={clsx(
+                  "p-1 rounded-full border transition-all",
+                  tx.paid
+                    ? "bg-green-100 border-green-200 text-green-600 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400"
+                    : "bg-slate-100 border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700"
+                )}
+                title={tx.paid ? "Marcar como não pago" : "Marcar como pago"}
+              >
+                {#if tx.paid}
+                  <div class="w-4 h-4 flex items-center justify-center">✓</div>
+                {:else}
+                  <div class="w-4 h-4"></div>
+                {/if}
+              </button>
             </td>
             <td class="px-6 py-4 text-right">
               <div
@@ -323,6 +351,20 @@
               >
             </div>
           </div>
+        </div>
+
+        <div class="flex items-center gap-2 pb-2">
+          <input
+            type="checkbox"
+            id="paid"
+            bind:checked={formPaid}
+            class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+          />
+          <label
+            for="paid"
+            class="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >Já está pago?</label
+          >
         </div>
 
         <div class="space-y-2">

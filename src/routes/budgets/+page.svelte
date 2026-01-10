@@ -222,10 +222,6 @@
               class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest"
               >Status</th
             >
-            <th
-              class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right"
-              >Ação</th
-            >
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -306,19 +302,10 @@
                   </div>
                 {/if}
               </td>
-              <td class="px-6 py-4 text-right">
-                <button
-                  onclick={() => handleSave(item.id!)}
-                  class="p-2 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg text-primary-600 dark:text-primary-400 transition-colors"
-                  title="Salvar Alteração"
-                >
-                  <Save size={18} />
-                </button>
-              </td>
             </tr>
           {:else}
             <tr>
-              <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+              <td colspan="4" class="px-6 py-12 text-center text-slate-400">
                 Aguardando carregamento de categorias...
               </td>
             </tr>
