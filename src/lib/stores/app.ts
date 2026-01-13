@@ -20,7 +20,12 @@ theme.subscribe((val) => {
   }
 });
 
-export const filters = writable({
+export const filters = writable<{
+  search: string;
+  categoryIds: string[];
+  status: 'all' | 'paid' | 'pending';
+}>({
   search: '',
-  categoryId: ''
+  categoryIds: [],
+  status: 'all'
 });

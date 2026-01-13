@@ -36,7 +36,6 @@ export const TransactionRepository = {
     return db.transactions
       .where("date")
       .between(startDate, endDate, true, true)
-      .reverse()
       .sortBy("date");
   },
   add: (transaction: Transaction) => db.transactions.add(transaction),

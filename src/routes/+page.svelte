@@ -49,8 +49,9 @@
       .slice(0, 3)
   );
 
-  const maxYearlyExpenses = $derived(
-    Math.max(...yearlySeries.map((m) => m.expenses), 0) || 1
+  const maxYearlyBalance = $derived(
+    Math.max(...yearlySeries.map((m) => Math.abs(m.incomes - m.expenses)), 0) ||
+      1
   );
 
   const avgDailySpent = $derived(
@@ -157,28 +158,27 @@
       <div class="flex items-center justify-between mb-8">
         <h3 class="text-lg font-bold">Progressão Anual</h3>
         <span class="text-sm text-slate-500"
-          >Despesas por mês em {$selectedDate.year}</span
+          >Saldo mensal em {$selectedDate.year}</span
         >
       </div>
       <div class="h-64 flex items-end justify-between gap-2 px-2">
         {#each yearlySeries as month, i}
+          {@const balance = month.incomes - month.expenses}
           <div
             class="flex-1 flex flex-col justify-end items-center gap-2 group relative h-full"
           >
             <div
-              class="w-full rounded-t-lg transition-all duration-500 overflow-hidden flex flex-col justify-end {month.incomes -
-                month.expenses <
+              class="w-full rounded-t-lg transition-all duration-500 overflow-hidden flex flex-col justify-end {balance <
               0
                 ? 'bg-red-500 group-hover:bg-red-600'
-                : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-500'}"
+                : 'bg-primary-500 group-hover:bg-primary-600'}"
               style="height: {Math.max(
                 0,
-                (month.expenses / maxYearlyExpenses) * 100
+                (Math.abs(balance) / maxYearlyBalance) * 100
               )}%"
             >
               <div
-                class="w-full h-full opacity-80 group-hover:opacity-100 transition-opacity {month.incomes -
-                  month.expenses <
+                class="w-full h-full opacity-80 group-hover:opacity-100 transition-opacity {balance <
                 0
                   ? 'bg-red-600'
                   : 'bg-primary-600'}"
@@ -193,7 +193,7 @@
             <div
               class="absolute -top-10 scale-0 group-hover:scale-100 transition-transform bg-slate-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10"
             >
-              {formatCurrency(month.expenses)}
+              {formatCurrency(balance)}
             </div>
           </div>
         {/each}

@@ -49,11 +49,12 @@ body {
 /* Dark mode override for cards */
 /* Dark mode override for cards (excluding primary/red highlighted cards) */
 /* Dark mode override for cards (excluding primary/red highlighted cards) */
-html.dark .card:not(.bg-primary-600):not(.bg-red-600) {
-  background-color: #0f172a; /* slate-900 */
-  border-color: #1e293b; /* slate-800 */
-  color: #f1f5f9; /* slate-100 */
-}
+/* Dark mode override for cards (excluding primary/red highlighted cards) - REMOVED: Conflicts with utility classes */
+/* html.dark .card:not(.bg-primary-600):not(.bg-red-600) {
+  background-color: #0f172a;
+  border-color: #1e293b; 
+  color: #f1f5f9;
+} */
 
 /* Dark mode overrides for layout elements */
 html.dark .sidebar,

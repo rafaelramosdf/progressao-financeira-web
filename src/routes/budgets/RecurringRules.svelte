@@ -90,17 +90,7 @@
     if (!rule.id) return;
 
     if (rule.active) {
-      if (
-        confirm(
-          `Desativar esta regra irá EXCLUIR todos os seus lançamentos gerados para o ano de ${$selectedDate.year}. Deseja continuar?`
-        )
-      ) {
-        await RecurringService.deleteForYear(
-          $selectedDate.year,
-          rule.description || ""
-        );
-        await RecurringRepository.update(rule.id, { active: false });
-      }
+      await RecurringRepository.update(rule.id, { active: false });
     } else {
       await RecurringRepository.update(rule.id, { active: true });
     }

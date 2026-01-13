@@ -8,6 +8,11 @@
     ArrowUpCircle,
     ArrowDownCircle,
     X,
+    Check,
+    Wallet,
+    TrendingUp,
+    TrendingDown,
+    AlertCircle,
   } from "lucide-svelte";
   import {
     TransactionRepository,
@@ -18,52 +23,69 @@
   import { formatCurrency, formatDate } from "$lib/domain/utils";
   import { liveQuery } from "dexie";
   import { clsx } from "clsx";
+  import { fade, slide } from "svelte/transition";
 
   let transactions = $state<Transaction[]>([]);
   let categories = liveQuery(() => CategoryRepository.getAll());
 
   $effect(() => {
-    // [DEBUG] Monitorando mudança de data
-    console.log("[DEBUG $effect] Date changed:", $selectedDate);
-
-    // Capturar valores para garantir reatividade
     const currentYear = $selectedDate.year;
     const currentMonth = $selectedDate.month;
 
     const observable = liveQuery(() => {
-      console.log("[DEBUG liveQuery] Executing query for:", {
-        currentYear,
-        currentMonth,
-      });
+      // Repository now returns sorted by date ASC (oldest first)
       return TransactionRepository.getFiltered(currentYear, currentMonth);
     });
 
     const subscription = observable.subscribe((res) => {
-      console.log("[DEBUG subscribe] Received transactions:", res.length);
       transactions = res;
     });
 
     return () => {
-      console.log("[DEBUG $effect] Cleanup");
       subscription.unsubscribe();
     };
   });
 
   let isModalOpen = $state(false);
   let editingTransaction = $state<Transaction | null>(null);
+  let isCategoryDropdownOpen = $state(false);
 
   // Form State
   let formDate = $state(new Date().toISOString().split("T")[0]);
   let formType = $state<"income" | "expense">("expense");
   let formAmount = $state<number | string>("");
   let formCategoryId = $state("");
-
   let formDescription = $state("");
   let formPaid = $state(true);
+
+  // New State for Multi-month creation
+  let formDay = $state(new Date().getDate());
+  let formMonths = $state<number[]>([new Date().getMonth()]); // 0-11
+
+  const MONTHS = [
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
+  ];
 
   function openCreate() {
     editingTransaction = null;
     formDate = new Date().toISOString().split("T")[0];
+
+    // Init multi-month defaults
+    const now = new Date();
+    formDay = now.getDate();
+    formMonths = [now.getMonth()];
+
     formType = "expense";
     formAmount = "";
     formCategoryId = $categories ? $categories[0]?.id || "" : "";
@@ -86,8 +108,7 @@
   async function handleSubmit() {
     if (!formAmount || !formCategoryId) return;
 
-    const txData: Omit<Transaction, "id"> = {
-      date: formDate,
+    const baseData = {
       type: formType,
       amount: Math.round(Number(formAmount) * 100),
       categoryId: formCategoryId,
@@ -98,11 +119,38 @@
     };
 
     if (editingTransaction) {
-      await TransactionRepository.update(editingTransaction.id!, txData);
+      await TransactionRepository.update(editingTransaction.id!, {
+        ...baseData,
+        date: formDate,
+      });
     } else {
-      await TransactionRepository.add(txData as any);
+      // Create for multiple months
+      const year = new Date().getFullYear();
+
+      for (const monthIndex of formMonths) {
+        // Construct date: YYYY-MM-DD (ensure padding)
+        const monthStr = (monthIndex + 1).toString().padStart(2, "0");
+        const dayStr = formDay.toString().padStart(2, "0");
+        const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+        await TransactionRepository.add({
+          ...baseData,
+          date: dateStr,
+        } as any);
+      }
     }
     isModalOpen = false;
+  }
+
+  function toggleMonth(index: number) {
+    if (formMonths.includes(index)) {
+      if (formMonths.length > 1) {
+        // Prevent unselecting all
+        formMonths = formMonths.filter((m) => m !== index);
+      }
+    } else {
+      formMonths = [...formMonths, index].sort((a, b) => a - b);
+    }
   }
 
   async function handleDelete(id: string) {
@@ -111,27 +159,63 @@
     }
   }
 
+  // Derived: Filtered Transactions
   const filteredTransactions = $derived(
     (transactions || []).filter((tx) => {
       const matchesSearch = tx.description
         ?.toLowerCase()
         .includes($filters.search.toLowerCase());
+
       const matchesCategory =
-        !$filters.categoryId || tx.categoryId === $filters.categoryId;
-      return matchesSearch && matchesCategory;
+        $filters.categoryIds.length === 0 ||
+        $filters.categoryIds.includes(tx.categoryId);
+
+      const matchesStatus =
+        $filters.status === "all" ||
+        ($filters.status === "paid" && tx.paid) ||
+        ($filters.status === "pending" && !tx.paid);
+
+      return matchesSearch && matchesCategory && matchesStatus;
     })
   );
+
+  // Derived: Summary Stats
+  const stats = $derived.by(() => {
+    const expenses = filteredTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((acc, t) => acc + t.amount, 0);
+    const income = filteredTransactions
+      .filter((t) => t.type === "income")
+      .reduce((acc, t) => acc + t.amount, 0);
+    const pending = filteredTransactions
+      .filter((t) => !t.paid)
+      .reduce((acc, t) => acc + (t.type === "expense" ? t.amount : 0), 0); // Only pending expenses for "Pendente de Pagamento"
+
+    return {
+      expenses,
+      income,
+      pending,
+      balance: income - expenses,
+    };
+  });
+
+  function toggleCategoryFilter(id: string) {
+    if ($filters.categoryIds.includes(id)) {
+      $filters.categoryIds = $filters.categoryIds.filter((c) => c !== id);
+    } else {
+      $filters.categoryIds = [...$filters.categoryIds, id];
+    }
+  }
 </script>
 
 <div class="space-y-6">
+  <!-- Header -->
   <div
     class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
   >
     <div>
       <h1 class="text-3xl font-bold">Lançamentos</h1>
-      <p class="text-slate-500">
-        Acompanhe e gerencie todos os seus movimentos financeiros.
-      </p>
+      <p class="text-slate-500">Gerencie suas despesas e receitas do mês.</p>
     </div>
     <button onclick={openCreate} class="btn-primary flex items-center gap-2">
       <Plus size={20} />
@@ -139,34 +223,229 @@
     </button>
   </div>
 
-  <div class="flex flex-col md:flex-row gap-4">
-    <div class="flex-1 relative">
-      <Search
-        class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-        size={18}
-      />
-      <input
-        type="text"
-        bind:value={$filters.search}
-        placeholder="Buscar por descrição..."
-        class="w-full pl-10 input-field"
-      />
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div
+      class="card p-4 flex flex-col gap-1 border-l-4 border-l-green-500 dark:border-l-green-500"
+    >
+      <div class="flex items-center gap-2 text-slate-500 text-sm font-medium">
+        <TrendingUp size={16} /> Receitas
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white">
+        {formatCurrency(stats.income)}
+      </div>
     </div>
-    <div class="flex gap-4">
-      <select
-        bind:value={$filters.categoryId}
-        class="input-field min-w-[180px]"
+    <div
+      class="card p-4 flex flex-col gap-1 border-l-4 border-l-red-500 dark:border-l-red-500"
+    >
+      <div class="flex items-center gap-2 text-slate-500 text-sm font-medium">
+        <TrendingDown size={16} /> Despesas
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white">
+        {formatCurrency(stats.expenses)}
+      </div>
+    </div>
+    <div
+      class="card p-4 flex flex-col gap-1 border-l-4 border-l-amber-500 dark:border-l-amber-500"
+    >
+      <div class="flex items-center gap-2 text-slate-500 text-sm font-medium">
+        <AlertCircle size={16} /> Pendente
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white">
+        {formatCurrency(stats.pending)}
+      </div>
+      <div class="text-xs text-slate-400">Total a pagar</div>
+    </div>
+    <div
+      class="card p-4 flex flex-col gap-1 border-l-4 border-l-blue-500 dark:border-l-blue-500"
+    >
+      <div class="flex items-center gap-2 text-slate-500 text-sm font-medium">
+        <Wallet size={16} /> Saldo Estimado
+      </div>
+      <div
+        class={clsx(
+          "text-2xl font-bold",
+          stats.balance >= 0
+            ? "text-blue-600 dark:text-blue-400"
+            : "text-red-600 dark:text-red-400"
+        )}
       >
-        <option value="">Todas as Categorias</option>
-        {#if $categories}
-          {#each $categories as category}
-            <option value={category.id}>{category.name}</option>
-          {/each}
-        {/if}
-      </select>
+        {formatCurrency(stats.balance)}
+      </div>
     </div>
   </div>
 
+  <!-- Filters -->
+  <div
+    class="flex flex-col gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm"
+  >
+    <div
+      class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between"
+    >
+      <!-- Search -->
+      <div class="relative flex-1 w-full md:max-w-xs">
+        <Search
+          class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          size={18}
+        />
+        <input
+          type="text"
+          bind:value={$filters.search}
+          placeholder="Buscar descrição..."
+          class="w-full pl-10 input-field"
+        />
+      </div>
+
+      <!-- Right Filters -->
+      <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <!-- Status Filter -->
+        <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+          <button
+            onclick={() => ($filters.status = "all")}
+            class={clsx(
+              "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+              $filters.status === "all"
+                ? "bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white"
+                : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            )}>Todos</button
+          >
+          <button
+            onclick={() => ($filters.status = "paid")}
+            class={clsx(
+              "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+              $filters.status === "paid"
+                ? "bg-white dark:bg-slate-700 shadow text-green-600 dark:text-green-400"
+                : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            )}>Pagos</button
+          >
+          <button
+            onclick={() => ($filters.status = "pending")}
+            class={clsx(
+              "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+              $filters.status === "pending"
+                ? "bg-white dark:bg-slate-700 shadow text-amber-600 dark:text-amber-400"
+                : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            )}>Pendentes</button
+          >
+        </div>
+
+        <!-- Category Dropdown -->
+        <div class="relative">
+          <button
+            onclick={() => (isCategoryDropdownOpen = !isCategoryDropdownOpen)}
+            class={clsx(
+              "btn-secondary flex items-center gap-2",
+              $filters.categoryIds.length > 0 &&
+                "border-primary-500 text-primary-600 bg-primary-50 dark:bg-primary-900/20"
+            )}
+          >
+            <Filter size={18} />
+            Categorias
+            {#if $filters.categoryIds.length > 0}
+              <span
+                class="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full"
+                >{$filters.categoryIds.length}</span
+              >
+            {/if}
+          </button>
+
+          {#if isCategoryDropdownOpen}
+            <div
+              transition:fade={{ duration: 100 }}
+              class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 z-20 p-2"
+            >
+              <div
+                class="flex items-center justify-between px-2 py-1 mb-2 border-b border-slate-100 dark:border-slate-800"
+              >
+                <span class="text-xs font-semibold text-slate-500 uppercase"
+                  >Filtrar Categorias</span
+                >
+                {#if $filters.categoryIds.length > 0}
+                  <button
+                    onclick={() => ($filters.categoryIds = [])}
+                    class="text-xs text-red-500 hover:text-red-600 font-medium"
+                    >Limpar</button
+                  >
+                {/if}
+              </div>
+
+              <div class="max-h-60 overflow-y-auto space-y-1">
+                {#if $categories}
+                  {#each $categories as category}
+                    <button
+                      onclick={() => toggleCategoryFilter(category.id!)}
+                      class={clsx(
+                        "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors",
+                        $filters.categoryIds.includes(category.id!)
+                          ? "bg-slate-100 dark:bg-slate-800 font-medium"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-400"
+                      )}
+                    >
+                      <div
+                        class="w-3 h-3 rounded-full"
+                        style="background-color: {category.color}"
+                      ></div>
+                      <span class="flex-1 text-left">{category.name}</span>
+                      {#if $filters.categoryIds.includes(category.id!)}
+                        <Check
+                          size={14}
+                          class="text-slate-900 dark:text-white"
+                        />
+                      {/if}
+                    </button>
+                  {/each}
+                {/if}
+              </div>
+
+              <!-- Backdrop to close -->
+              <div
+                class="fixed inset-0 z-[-1]"
+                onclick={() => (isCategoryDropdownOpen = false)}
+              ></div>
+            </div>
+          {/if}
+          {#if isCategoryDropdownOpen}
+            <div
+              class="fixed inset-0 z-10"
+              onclick={() => (isCategoryDropdownOpen = false)}
+            ></div>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Category Tags -->
+    {#if $filters.categoryIds.length > 0 && $categories}
+      <div
+        class="flex flex-wrap gap-2 pt-2 border-t border-slate-100 dark:border-slate-800"
+      >
+        {#each $filters.categoryIds as catId}
+          {@const cat = $categories.find((c) => c.id === catId)}
+          {#if cat}
+            <button
+              onclick={() => toggleCategoryFilter(catId)}
+              class="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              <div
+                class="w-2 h-2 rounded-full"
+                style="background-color: {cat.color}"
+              ></div>
+              {cat.name}
+              <X size={12} class="opacity-50 hover:opacity-100" />
+            </button>
+          {/if}
+        {/each}
+        <button
+          onclick={() => ($filters.categoryIds = [])}
+          class="text-xs text-slate-500 hover:text-red-500 underline decoration-slate-300 underline-offset-2"
+        >
+          Limpar filtros
+        </button>
+      </div>
+    {/if}
+  </div>
+
+  <!-- Transactions Table -->
   <div class="card p-0 overflow-hidden">
     <table class="w-full text-left">
       <thead
@@ -200,7 +479,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-        {#each filteredTransactions as tx}
+        {#each filteredTransactions as tx (tx.id)}
           {@const category = $categories?.find((c) => c.id === tx.categoryId)}
           <tr
             class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group"
@@ -278,8 +557,21 @@
           </tr>
         {:else}
           <tr>
-            <td colspan="5" class="px-6 py-12 text-center text-slate-500">
-              Nenhum lançamento encontrado para este período.
+            <td colspan="6" class="px-6 py-12 text-center text-slate-500">
+              <div class="flex flex-col items-center justify-center gap-2">
+                <Filter size={32} class="text-slate-300 mb-2" />
+                <p>Nenhum lançamento encontrado com os filtros atuais.</p>
+                <button
+                  onclick={() => {
+                    $filters.search = "";
+                    $filters.categoryIds = [];
+                    $filters.status = "all";
+                  }}
+                  class="text-primary-600 hover:underline text-sm"
+                >
+                  Limpar todos os filtros
+                </button>
+              </div>
             </td>
           </tr>
         {/each}
@@ -318,13 +610,25 @@
       >
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <label class="text-sm font-medium">Data</label>
-            <input
-              type="date"
-              bind:value={formDate}
-              class="w-full input-field"
-              required
-            />
+            {#if editingTransaction}
+              <label class="text-sm font-medium">Data</label>
+              <input
+                type="date"
+                bind:value={formDate}
+                class="w-full input-field"
+                required
+              />
+            {:else}
+              <label class="text-sm font-medium">Dia do Vencimento</label>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                bind:value={formDay}
+                class="w-full input-field"
+                required
+              />
+            {/if}
           </div>
           <div class="space-y-2">
             <label class="text-sm font-medium">Tipo</label>
@@ -352,6 +656,30 @@
             </div>
           </div>
         </div>
+
+        {#if !editingTransaction}
+          <div class="space-y-2">
+            <label class="text-sm font-medium"
+              >Repetir nos meses de {new Date().getFullYear()}</label
+            >
+            <div class="grid grid-cols-6 gap-2">
+              {#each MONTHS as monthName, i}
+                <button
+                  type="button"
+                  onclick={() => toggleMonth(i)}
+                  class={clsx(
+                    "flex items-center justify-center py-2 rounded-lg text-xs font-bold transition-all border",
+                    formMonths.includes(i)
+                      ? "bg-primary-600 text-white border-primary-600 shadow-md transform scale-105"
+                      : "bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 hover:border-primary-300"
+                  )}
+                >
+                  {monthName}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
 
         <div class="flex items-center gap-2 pb-2">
           <input
